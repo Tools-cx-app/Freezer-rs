@@ -1,0 +1,11 @@
+use anyhow::Result;
+
+mod freezer;
+mod logger;
+
+fn main() -> Result<()> {
+    logger::log_init()?;
+    let mut freezer = freezer::Freezer::new()?;
+    freezer.get_visible_app();
+    Ok(())
+}
