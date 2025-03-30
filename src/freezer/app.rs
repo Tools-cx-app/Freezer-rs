@@ -21,10 +21,10 @@ pub struct App {
 impl App {
     pub fn new() -> Result<Self> {
         let path = "/data/system/packages.list";
-        let file = std::fs::File::open(path).with_context(|| format!("Failed to open {}", path))?;
+        let file = std::fs::File::open(path).with_context(|| format!("未能打开 {}", path))?;
         let mut apps = HashMap::new();
         for line in std::io::BufRead::lines(std::io::BufReader::new(file)) {
-            let line = line.with_context(|| "Error reading line")?;
+            let line = line.with_context(|| "读取行时出错")?;
             let parts: Vec<&str> = line.split_whitespace().collect();
 
             if parts.len() < 2 {
@@ -33,7 +33,7 @@ impl App {
 
             let uid = parts[1]
                 .parse::<usize>()
-                .with_context(|| format!("Invalid UID format: {}", parts[1]))?;
+                .with_context(|| format!("无效的UID格式: {}", parts[1]))?;
 
             if uid < 10000 {
                 continue;

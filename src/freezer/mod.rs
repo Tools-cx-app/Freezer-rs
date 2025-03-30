@@ -23,7 +23,7 @@ impl Freezer {
         let output = Command::new("/system/bin/cmd")
             .args(&["activity", "stack", "list"])
             .output()
-            .expect("Failed to execute command");
+            .expect("无法执行cmd activity stack list");
         let output_str = String::from_utf8_lossy(&output.stdout);
         let mut lines = output_str.lines();
         let mut cur_foreground_app = HashSet::new();
