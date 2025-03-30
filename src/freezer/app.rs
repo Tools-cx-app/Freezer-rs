@@ -84,6 +84,16 @@ impl App {
         Ok(self.pids.clone())
     }
 
+    pub fn add_whitelist(&mut self, packages: HashSet<String>) {
+        for package in packages {
+            self.whitelist.insert(self.get_uid(package.as_str()));
+        }
+        #[cfg(debug_assertions)]
+        {
+            log::debug!("白名单应用:{:?}", self.whitelist);
+        }
+    }
+
     pub fn contains(&self, package: &str) -> bool {
         self.packages.contains_key(package)
     }

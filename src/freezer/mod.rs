@@ -8,6 +8,7 @@ use regex::Regex;
 
 mod app;
 mod config;
+pub mod r#enum;
 
 lazy_static! {
     static ref COMPONENT_RE: Regex = Regex::new(r".*\{([^/]+)/").unwrap();
@@ -51,6 +52,7 @@ impl Freezer {
         let mut inotify = Inotify::init()?;
         inotify.watches().add("/dev/input", WatchMask::ACCESS)?;
         let config = config::ConfigData::new()?;
+        self.app.add_whitelist(config.white_list);
         loop {
             inotify.read_events_blocking(&mut [0; 1024])?;
             let visible_app = self.get_visible_app();
