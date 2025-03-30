@@ -30,6 +30,9 @@ impl App {
                 .parse::<usize>()
                 .with_context(|| format!("Invalid UID format: {}", parts[1]))?;
 
+            if uid < 10000 {
+                continue;
+            }
             apps.insert(parts[0].to_string(), uid);
         }
         // log::debug!("{:?}", apps);
@@ -46,7 +49,7 @@ impl App {
     pub fn get_uid(&self, package: &str) -> usize {
         *self.packages.get(package).unwrap()
     }
-    
+
     pub fn is_whitelist(&self, uid: usize) -> bool {
         self.whitelist.contains(&uid)
     }
