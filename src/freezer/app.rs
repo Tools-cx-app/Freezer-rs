@@ -20,31 +20,53 @@ pub struct App {
 
 impl App {
     pub fn new() -> Result<Self> {
-        let path = "/data/system/packages.list";
-        let file = std::fs::File::open(path).with_context(|| format!("未能打开 {path}"))?;
-        let mut apps = HashMap::new();
-        for line in std::io::BufRead::lines(std::io::BufReader::new(file)) {
-            let line = line.with_context(|| "读取行时出错")?;
-            let parts: Vec<&str> = line.split_whitespace().collect();
-
-            if parts.len() < 2 {
-                continue;
-            }
-
-            let uid = parts[1]
-                .parse::<usize>()
-                .with_context(|| format!("无效的UID格式: {}", parts[1]))?;
-
-            if uid < 10000 {
-                continue;
-            }
-            apps.insert(parts[0].to_string(), uid);
-        }
-        Ok(Self {
+        let mut s = Self {
             pids: HashMap::new(),
-            packages: apps,
+            packages: HashMap::new(),
             whitelist: HashSet::new(),
-        })
+        };
+        let _ = s.refresh_packages();
+        Ok(s)
+    }
+
+    pub fn refresh_packages(&mut self) -> Result<()> {
+        let proc_dir = fs::read_dir("/proc").with_context(|| "无法读取/proc/")?;
+        let mut map = HashMap::new();
+        for entry in proc_dir {
+            let entry = match entry {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+            let file_name = entry.file_name();
+            let pid_str = match file_name.to_str() {
+                Some(s) => s,
+                None => continue,
+            };
+
+            let status_path = Path::new("/proc").join(&pid_str).join("status");
+            let status_content = match fs::read_to_string(&status_path) {
+                Ok(c) => c,
+                Err(_) => continue,
+            };
+            let process_uid = match Self::parse_uid_from_status(&status_content) {
+                Some(uid) => uid,
+                None => continue,
+            };
+            
+            if process_uid < 10000 {
+            continue;
+            }
+
+            let cmdline_path = Path::new("/proc").join(pid_str).join("cmdline");
+            let cmdline = match fs::read_to_string(&cmdline_path) {
+                Ok(c) => c,
+                Err(_) => continue,
+            };
+
+            map.insert(cmdline.trim_matches('\0').to_string(), process_uid);
+        }
+        self.packages = map.clone();
+        Ok(())
     }
 
     pub fn get_pids(&mut self, package: &str) -> Result<HashMap<String, usize>> {
@@ -93,57 +115,13 @@ impl App {
             log::debug!("白名单应用:{:?}", self.whitelist);
         }
     }
-
-    pub fn is_backstage(&self, uid: usize) -> Result<bool> {
-        let proc_dir = fs::read_dir("/proc").with_context(|| "无法读取/proc/")?;
-        for entry in proc_dir {
-            let entry = match entry {
-                Ok(e) => e,
-                Err(_) => continue,
-            };
-            let file_name = entry.file_name();
-            let pid_str = match file_name.to_str() {
-                Some(s) => s,
-                None => continue,
-            };
-
-            let status_path = Path::new("/proc").join(&pid_str).join("status");
-            let status_content = match fs::read_to_string(&status_path) {
-                Ok(c) => c,
-                Err(_) => continue, // 跳过无法读取的进程
-            };
-
-            let process_uid = match Self::parse_uid_from_status(&status_content) {
-                Some(uid) => uid,
-                None => continue,
-            };
-
-            if process_uid == uid {
-                let oom_score = Self::get_oom_score(&pid_str).unwrap_or(0);
-                if oom_score >= 100 {
-                    return Ok(true);
-                }
-            }
-        }
-        Ok(false)
-    }
-
+    
     fn parse_uid_from_status(context: &str) -> Option<usize> {
         context
             .lines()
             .find(|line| line.starts_with("Uid:"))
             .and_then(|line| line.split_whitespace().nth(1))
             .and_then(|s| s.parse::<usize>().ok())
-    }
-
-    fn get_oom_score(pid_str: &str) -> Result<i32> {
-        let path = format!("/proc/{}/oom_score_adj", pid_str);
-        let score = fs::read_to_string(&path).with_context(|| format!("无法读取 {}", path))?;
-
-        score
-            .trim()
-            .parse::<i32>()
-            .with_context(|| format!("无效的 oom_score 值: {}", score))
     }
 
     pub fn contains(&self, package: &str) -> bool {

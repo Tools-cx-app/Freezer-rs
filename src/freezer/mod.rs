@@ -37,7 +37,6 @@ impl Freezer {
                     let package = caps.get(1).unwrap().as_str();
                     if self.app.contains(package) {
                         let uid = self.app.get_uid(package);
-                        let pids = self.app.get_pids(package).unwrap();
                         if !self.app.is_whitelist(uid) {
                             cur_foreground_app.insert(uid);
                         }
@@ -55,6 +54,7 @@ impl Freezer {
         self.app.add_whitelist(config.white_list);
         loop {
             inotify.read_events_blocking(&mut [0; 1024])?;
+            self.app.refresh_packages()?;
             let visible_app = self.get_visible_app();
 
             #[cfg(debug_assertions)]
