@@ -10,8 +10,8 @@ fn main() -> Result<()> {
     let mut inotify = Inotify::init()?;
     inotify.watches().add("/dev/input", WatchMask::ACCESS)?;
     loop {
-    inotify.read_events_blocking(&mut [0; 1024])?;
-    freezer.get_visible_app();
+        inotify.read_events_blocking(&mut [0; 1024])?;
+        freezer.get_visible_app();
     }
     Ok(())
 }
