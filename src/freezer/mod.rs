@@ -36,7 +36,6 @@ impl Freezer {
                     if self.app.contains(package) {
                         let uid = self.app.get_uid(package);
                         let pids = self.app.get_pids(package).unwrap();
-                        log::debug!("{uid:?} {pids:?}");
                         if !self.app.is_whitelist(uid) {
                             cur_foreground_app.insert(uid);
                         }
@@ -51,7 +50,6 @@ impl Freezer {
         let mut inotify = Inotify::init()?;
         inotify.watches().add("/dev/input", WatchMask::ACCESS)?;
         let config = config::ConfigData::new()?;
-        log::debug!("{config:?}");
         loop {
             inotify.read_events_blocking(&mut [0; 1024])?;
             self.get_visible_app();
