@@ -94,6 +94,24 @@ impl App {
         }
     }
 
+    pub fn is_backstage(&self, package: &str) -> Result<bool> {
+        let proc_dir = fs::read_dir("/proc").with_context(|| "无法读取/proc/")?;
+        for entry in proc_dir {
+            let entry = match entry {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+            let file_name = entry.file_name();
+            let pid_str = match file_name.to_str() {
+                Some(s) => s,
+                None => continue,
+            };
+
+            return Ok(pid_str.contains(package));
+        }
+        Ok(false)
+    }
+
     pub fn contains(&self, package: &str) -> bool {
         self.packages.contains_key(package)
     }
