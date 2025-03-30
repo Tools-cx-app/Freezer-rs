@@ -9,7 +9,6 @@
 )]
 
 use anyhow::Result;
-use inotify::{Inotify, WatchMask};
 
 mod freezer;
 mod logger;

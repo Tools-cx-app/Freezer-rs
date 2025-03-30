@@ -10,9 +10,9 @@ pub struct ConfigData {
 }
 
 impl ConfigData {
-    pub fn new() -> Result<ConfigData> {
+    pub fn new() -> Result<Self> {
         let context = fs::read_to_string("/storage/emulated/0/Android/freezer.toml").with_context(|| "无法读取配置文件")?;
-        let toml: ConfigData =
+        let toml: Self =
             toml::from_str(context.as_str()).with_context(|| "无法转换配置文件")?;
         Ok(toml)
     }

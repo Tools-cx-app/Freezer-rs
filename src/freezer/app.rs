@@ -21,7 +21,7 @@ pub struct App {
 impl App {
     pub fn new() -> Result<Self> {
         let path = "/data/system/packages.list";
-        let file = std::fs::File::open(path).with_context(|| format!("未能打开 {}", path))?;
+        let file = std::fs::File::open(path).with_context(|| format!("未能打开 {path}"))?;
         let mut apps = HashMap::new();
         for line in std::io::BufRead::lines(std::io::BufReader::new(file)) {
             let line = line.with_context(|| "读取行时出错")?;
