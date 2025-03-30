@@ -94,7 +94,7 @@ impl App {
         }
     }
 
-    pub fn is_backstage(&self, package: &str) -> Result<bool> {
+    pub fn is_backstage(&self, uid: usize) -> Result<bool> {
         let proc_dir = fs::read_dir("/proc").with_context(|| "无法读取/proc/")?;
         for entry in proc_dir {
             let entry = match entry {
@@ -107,9 +107,43 @@ impl App {
                 None => continue,
             };
 
-            return Ok(pid_str.contains(package));
+            let status_path = Path::new("/proc").join(&pid_str).join("status");
+            let status_content = match fs::read_to_string(&status_path) {
+                Ok(c) => c,
+                Err(_) => continue, // 跳过无法读取的进程
+            };
+
+            let process_uid = match Self::parse_uid_from_status(&status_content) {
+                Some(uid) => uid,
+                None => continue,
+            };
+
+            if process_uid == uid {
+                let oom_score = Self::get_oom_score(&pid_str).unwrap_or(0);
+                if oom_score >= 100 {
+                    return Ok(true);
+                }
+            }
         }
         Ok(false)
+    }
+
+    fn parse_uid_from_status(context: &str) -> Option<usize> {
+        context
+            .lines()
+            .find(|line| line.starts_with("Uid:"))
+            .and_then(|line| line.split_whitespace().nth(1))
+            .and_then(|s| s.parse::<usize>().ok())
+    }
+
+    fn get_oom_score(pid_str: &str) -> Result<i32> {
+        let path = format!("/proc/{}/oom_score_adj", pid_str);
+        let score = fs::read_to_string(&path).with_context(|| format!("无法读取 {}", path))?;
+
+        score
+            .trim()
+            .parse::<i32>()
+            .with_context(|| format!("无效的 oom_score 值: {}", score))
     }
 
     pub fn contains(&self, package: &str) -> bool {
