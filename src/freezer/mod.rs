@@ -51,7 +51,6 @@ impl Freezer {
                 }
             }
         }
-        log::debug!("{:?}", cur_foreground_app);
         cur_foreground_app
     }
 }
