@@ -43,7 +43,8 @@ impl Freezer {
                     let package = caps.get(1).unwrap().as_str();
                     if self.app.contains(package) {
                         let uid = self.app.get_uid(package);
-                        log::debug!("{:?}", uid);
+                        let pids = self.app.get_pids(package).unwrap();
+                        log::debug!("{uid:?} {pids:?}");
                         if !self.app.is_whitelist(uid) {
                             cur_foreground_app.insert(uid);
                         }

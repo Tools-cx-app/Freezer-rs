@@ -1,4 +1,8 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    fs,
+    path::Path,
+};
 
 use anyhow::{Context, Result};
 use lazy_static::lazy_static;
@@ -9,6 +13,7 @@ lazy_static! {
 }
 
 pub struct App {
+    pids: HashMap<String, usize>,
     packages: HashMap<String, usize>,
     whitelist: HashSet<usize>,
 }
@@ -35,11 +40,48 @@ impl App {
             }
             apps.insert(parts[0].to_string(), uid);
         }
-        // log::debug!("{:?}", apps);
         Ok(Self {
+            pids: HashMap::new(),
             packages: apps,
             whitelist: HashSet::new(),
         })
+    }
+
+    pub fn get_pids(&mut self, package: &str) -> Result<HashMap<String, usize>> {
+        let proc_dir = fs::read_dir("/proc").with_context(|| "无法读取/proc/")?;
+        for entry in proc_dir {
+            let entry = match entry {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+
+            let file_name = entry.file_name();
+            let pid_str = match file_name.to_str() {
+                Some(s) => s,
+                None => continue,
+            };
+
+            let pid = match pid_str.parse::<usize>() {
+                Ok(p) => p,
+                Err(_) => continue,
+            };
+
+            if pid <= 100 {
+                continue;
+            }
+
+            let cmdline_path = Path::new("/proc").join(pid_str).join("cmdline");
+            let cmdline = match fs::read(&cmdline_path) {
+                Ok(c) => c,
+                Err(_) => continue,
+            };
+
+            let cmdline_str = String::from_utf8_lossy(&cmdline);
+            if cmdline_str.starts_with(package) {
+                self.pids.insert(package.to_string(), pid);
+            }
+        }
+        Ok(self.pids.clone())
     }
 
     pub fn contains(&self, package: &str) -> bool {
