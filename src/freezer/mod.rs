@@ -2,10 +2,12 @@ use std::{collections::HashSet, process::Command};
 
 use anyhow::Result;
 use app::App;
+use inotify::{Inotify, WatchMask};
 use lazy_static::lazy_static;
 use regex::Regex;
 
 mod app;
+mod config;
 
 lazy_static! {
     static ref COMPONENT_RE: Regex = Regex::new(r".*\{([^/]+)/").unwrap();
@@ -28,16 +30,6 @@ impl Freezer {
         let mut lines = output_str.lines();
         let mut cur_foreground_app = HashSet::new();
         while let Some(line) = lines.next() {
-            // 处理桌面应用
-            /*if !self.app.has_home_package() && line.contains("mActivityType=home") {
-                if let Some(next_line) = lines.next() {
-                    if let Some(caps) = COMPONENT_RE.captures(next_line) {
-                        let package = caps.get(1).unwrap().as_str();
-                        managed_app.update_home_package(package);
-                    }
-                }
-            }*/
-
             if line.starts_with("  taskId=") && line.contains("visible=true") {
                 if let Some(caps) = COMPONENT_RE.captures(line) {
                     let package = caps.get(1).unwrap().as_str();
@@ -53,5 +45,17 @@ impl Freezer {
             }
         }
         cur_foreground_app
+    }
+
+    pub fn enter_looper(&mut self) -> Result<()> {
+        let mut inotify = Inotify::init()?;
+        inotify.watches().add("/dev/input", WatchMask::ACCESS)?;
+        let config = config::ConfigData::new()?;
+        log::debug!("{config:?}");
+        loop {
+            inotify.read_events_blocking(&mut [0; 1024])?;
+            self.get_visible_app();
+        }
+        Ok(())
     }
 }
