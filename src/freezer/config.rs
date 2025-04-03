@@ -6,7 +6,6 @@ use serde::Deserialize;
 #[derive(Deserialize, Debug)]
 pub struct ConfigData {
     pub white_list: HashSet<String>,
-    pub mode: String,
 }
 
 impl ConfigData {

@@ -1,7 +1,8 @@
-use std::{collections::HashSet, process::Command};
+use std::{collections::HashSet, path::PathBuf, process::Command, str::FromStr};
 
 use anyhow::Result;
 use app::App;
+use r#enum::{Mode, V1Mode, V2Mode};
 use inotify::{Inotify, WatchMask};
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -16,11 +17,19 @@ lazy_static! {
 
 pub struct Freezer {
     app: App,
+    mode: Option<Mode>,
+    v2: Option<V2Mode>,
+    v1: Option<V1Mode>,
 }
 
 impl Freezer {
     pub fn new() -> Result<Self> {
-        Ok(Self { app: App::new()? })
+        Ok(Self {
+            app: App::new()?,
+            mode: None,
+            v2: None,
+            v1: None,
+        })
     }
 
     fn get_visible_app(&mut self) -> HashSet<usize> {
@@ -47,11 +56,44 @@ impl Freezer {
         cur_foreground_app
     }
 
+    #[allow(non_snake_case)]
+    fn check_cgroup(&mut self) -> Result<()> {
+        let cgroupV2FreezerPath = PathBuf::from_str("/sys/fs/cgroup/uid_0/cgroup.freeze")?;
+        let cgroupV2frozenPath = PathBuf::from_str("/sys/fs/cgroup/frozen/cgroup.freeze")?;
+        let cgroupV2unfrozenPath = PathBuf::from_str("/sys/fs/cgroup/unfrozen/cgroup.freeze")?;
+        let cgroupV1frozenPath = PathBuf::from_str("/dev/freezer/frozen/cgroup.procs")?;
+        let cgroupV1UnfrozenPath = PathBuf::from_str("/dev/freezer/unfrozen/cgroup.procs")?;
+
+        if cgroupV2FreezerPath.exists() {
+            self.mode = Some(Mode::V2);
+            self.v2 = Some(V2Mode::Uid);
+            return Ok(());
+        }
+        if cgroupV2frozenPath.exists() && cgroupV2unfrozenPath.exists() {
+            self.mode = Some(Mode::V2);
+            self.v2 = Some(V2Mode::Frozen);
+            return Ok(());
+        }
+        if cgroupV1frozenPath.exists() && cgroupV1UnfrozenPath.exists() {
+            self.mode = Some(Mode::V1);
+            self.v1 = Some(V1Mode::Frozen);
+            return Ok(());
+        }
+        Ok(())
+    }
+
     pub fn enter_looper(&mut self) -> Result<()> {
         let mut inotify = Inotify::init()?;
         inotify.watches().add("/dev/input", WatchMask::ACCESS)?;
         let config = config::ConfigData::new()?;
         self.app.add_whitelist(config.white_list);
+        self.check_cgroup()?;
+        #[cfg(debug_assertions)]
+        {
+            log::debug!("cgroup挂载情况:{:?}", self.mode);
+            log::debug!("v1挂载情况:{:?}", self.v1);
+            log::debug!("v2挂载情况:{:?}", self.v2);
+        }
         loop {
             inotify.read_events_blocking(&mut [0; 1024])?;
             self.app.refresh_packages()?;
@@ -60,6 +102,11 @@ impl Freezer {
             #[cfg(debug_assertions)]
             {
                 log::debug!("当前顶层应用uid: {:?}", visible_app);
+            }
+
+            match self.mode {
+                Some(s) => (),
+                None => log::error!("无cgroup使用, 将使用SIGSTOP"),
             }
         }
     }
