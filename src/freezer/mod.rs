@@ -152,26 +152,37 @@ impl Freezer {
                 Mode::SIGSTOP
             }
         };
-        let mut freezePath = match mode {
-            Mode::V2 => match self.v2 {
-                Some(v2) => match v2 {
-                    V2Mode::Uid => PathBuf::from_str("/sys/fs/cgroup/uid_xxx/cgroup.freeze").unwrap(),
-                    V2Mode::Frozen => {
-                        PathBuf::from_str("/sys/fs/cgroup/frozen/cgroup.freeze").unwrap()
+        let mut freezePath = vec![];
+        for i in visible_app {
+            match mode {
+                Mode::V2 => match self.v2 {
+                    Some(v2) => match v2 {
+                        V2Mode::Uid => freezePath.push(
+                            PathBuf::from_str(
+                                format!("/sys/fs/cgroup/uid_{}/cgroup.freeze", { i }).as_str(),
+                            )
+                            .unwrap(),
+                        ),
+                        V2Mode::Frozen => freezePath.push(
+                            PathBuf::from_str("/sys/fs/cgroup/frozen/cgroup.freeze").unwrap(),
+                        ),
+                    },
+                    None => {
+                        log::error!("无法判断V2类型");
+                        freezePath.push(PathBuf::new())
                     }
                 },
-                None => {
-                    log::error!("无法判断V2类型");
-                    PathBuf::new()
+                Mode::V1 => {
+                    freezePath.push(PathBuf::from_str("/dev/freezer/frozen/cgroup.procs").unwrap())
                 }
-            },
-            Mode::V1 => PathBuf::from_str("/dev/freezer/frozen/cgroup.procs").unwrap(),
-            Mode::SIGSTOP => PathBuf::new(),
-        };
-
+                Mode::SIGSTOP => freezePath.push(PathBuf::new()),
+            };
+        }
         #[cfg(debug_assertions)]
         {
-            log::debug!("{}", freezePath.display());
+            for display in freezePath {
+                log::debug!("{}", display.display());
+            }
         }
     }
 }
