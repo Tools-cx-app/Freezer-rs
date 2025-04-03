@@ -1,7 +1,8 @@
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Mode {
     V1,
     V2,
+    SIGSTOP,
 }
 
 #[derive(Debug)]

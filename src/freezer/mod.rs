@@ -104,10 +104,13 @@ impl Freezer {
                 log::debug!("当前顶层应用uid: {:?}", visible_app);
             }
 
-            match self.mode {
-                Some(s) => (),
-                None => log::error!("无cgroup使用, 将使用SIGSTOP"),
-            }
+            let mode = match self.mode {
+                Some(s) => s,
+                None => {
+                    log::error!("无cgroup使用, 将使用SIGSTOP");
+                    Mode::SIGSTOP
+                }
+            };
         }
     }
 }
