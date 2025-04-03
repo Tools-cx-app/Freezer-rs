@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fs, path::PathBuf, process::Command, str::FromStr};
+use std::{collections::HashSet, path::PathBuf, process::Command, str::FromStr};
 
 use anyhow::Result;
 use app::App;
