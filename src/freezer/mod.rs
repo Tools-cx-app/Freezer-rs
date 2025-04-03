@@ -153,7 +153,7 @@ impl Freezer {
             }
         };
         let mut freezePath = vec![];
-        for i in visible_app {
+        for i in self.pendingHandleList.list.clone() {
             match mode {
                 Mode::V2 => match self.v2 {
                     Some(v2) => match v2 {
