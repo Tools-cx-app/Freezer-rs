@@ -52,9 +52,9 @@ impl App {
                 Some(uid) => uid,
                 None => continue,
             };
-            
+
             if process_uid < 10000 {
-            continue;
+                continue;
             }
 
             let cmdline_path = Path::new("/proc").join(pid_str).join("cmdline");
@@ -115,7 +115,7 @@ impl App {
             log::debug!("白名单应用:{:?}", self.whitelist);
         }
     }
-    
+
     fn parse_uid_from_status(context: &str) -> Option<usize> {
         context
             .lines()

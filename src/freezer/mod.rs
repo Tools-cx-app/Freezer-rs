@@ -1,4 +1,4 @@
-use std::{collections::HashSet, path::PathBuf, process::Command, str::FromStr};
+use std::{collections::HashSet, fs, path::PathBuf, process::Command, str::FromStr};
 
 use anyhow::Result;
 use app::App;
@@ -15,11 +15,37 @@ lazy_static! {
     static ref COMPONENT_RE: Regex = Regex::new(r".*\{([^/]+)/").unwrap();
 }
 
+#[allow(non_snake_case)]
 pub struct Freezer {
     app: App,
     mode: Option<Mode>,
     v2: Option<V2Mode>,
     v1: Option<V1Mode>,
+    pendingHandleList: PendingHandleList,
+}
+
+struct PendingHandleList {
+    list: HashSet<usize>,
+}
+
+impl PendingHandleList {
+    fn new() -> Self {
+        Self {
+            list: HashSet::new(),
+        }
+    }
+
+    fn erase(&mut self, uid: usize) {
+        self.list.remove(&uid);
+    }
+
+    fn add(&mut self, uid: usize) {
+        self.list.insert(uid);
+    }
+
+    fn contains(&self, uid: usize) -> bool {
+        self.list.contains(&uid)
+    }
 }
 
 impl Freezer {
@@ -29,6 +55,7 @@ impl Freezer {
             mode: None,
             v2: None,
             v1: None,
+            pendingHandleList: PendingHandleList::new(),
         })
     }
 
@@ -102,15 +129,49 @@ impl Freezer {
             #[cfg(debug_assertions)]
             {
                 log::debug!("当前顶层应用uid: {:?}", visible_app);
+                log::debug!("当前pendingHandleList: {:?}", self.pendingHandleList.list);
             }
 
-            let mode = match self.mode {
-                Some(s) => s,
-                None => {
-                    log::error!("无cgroup使用, 将使用SIGSTOP");
-                    Mode::SIGSTOP
+            for i in visible_app.clone() {
+                self.pendingHandleList.add(i);
+                if visible_app.len() == 1 {
+                    self.pendingHandleList.erase(i);
                 }
-            };
+            }
+
+            self.freezer();
+        }
+    }
+
+    fn freezer(&mut self) {
+        let visible_app = self.get_visible_app();
+        let mode = match self.mode {
+            Some(s) => s,
+            None => {
+                log::error!("无cgroup使用, 将使用SIGSTOP");
+                Mode::SIGSTOP
+            }
+        };
+        let mut freezePath = match mode {
+            Mode::V2 => match self.v2 {
+                Some(v2) => match v2 {
+                    V2Mode::Uid => PathBuf::from_str("/sys/fs/cgroup/uid_xxx/cgroup.freeze").unwrap(),
+                    V2Mode::Frozen => {
+                        PathBuf::from_str("/sys/fs/cgroup/frozen/cgroup.freeze").unwrap()
+                    }
+                },
+                None => {
+                    log::error!("无法判断V2类型");
+                    PathBuf::new()
+                }
+            },
+            Mode::V1 => PathBuf::from_str("/dev/freezer/frozen/cgroup.procs").unwrap(),
+            Mode::SIGSTOP => PathBuf::new(),
+        };
+
+        #[cfg(debug_assertions)]
+        {
+            log::debug!("{}", freezePath.display());
         }
     }
 }

@@ -5,12 +5,12 @@ pub enum Mode {
     SIGSTOP,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum V1Mode {
     Frozen,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum V2Mode {
     Uid,
     Frozen,
