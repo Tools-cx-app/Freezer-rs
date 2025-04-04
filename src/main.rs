@@ -8,6 +8,8 @@
     clippy::cast_possible_wrap
 )]
 #![feature(let_chains)]
+#![allow(non_snake_case)]
+
 
 use anyhow::Result;
 
