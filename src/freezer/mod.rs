@@ -2,12 +2,14 @@ use std::{collections::HashSet, path::PathBuf, process::Command, str::FromStr};
 
 use anyhow::Result;
 use app::App;
+use cgroup::Cgroup;
 use r#enum::{Mode, V1Mode, V2Mode};
 use inotify::{Inotify, WatchMask};
 use lazy_static::lazy_static;
 use regex::Regex;
 
 mod app;
+mod cgroup;
 mod config;
 pub mod r#enum;
 
@@ -21,6 +23,7 @@ pub struct Freezer {
     mode: Option<Mode>,
     v2: Option<V2Mode>,
     v1: Option<V1Mode>,
+    cgroup: Cgroup,
     pendingHandleList: PendingHandleList,
 }
 
@@ -55,6 +58,7 @@ impl Freezer {
             mode: None,
             v2: None,
             v1: None,
+            cgroup: Cgroup::new(),
             pendingHandleList: PendingHandleList::new(),
         })
     }
@@ -83,7 +87,6 @@ impl Freezer {
         cur_foreground_app
     }
 
-    #[allow(non_snake_case)]
     fn check_cgroup(&mut self) -> Result<()> {
         let cgroupV2FreezerPath = PathBuf::from_str("/sys/fs/cgroup/uid_0/cgroup.freeze")?;
         let cgroupV2frozenPath = PathBuf::from_str("/sys/fs/cgroup/frozen/cgroup.freeze")?;
@@ -112,9 +115,20 @@ impl Freezer {
     pub fn enter_looper(&mut self) -> Result<()> {
         let mut inotify = Inotify::init()?;
         inotify.watches().add("/dev/input", WatchMask::ACCESS)?;
+
         let config = config::ConfigData::new()?;
         self.app.add_whitelist(config.white_list);
+
         self.check_cgroup()?;
+
+        if let Some(mode) = self.mode {
+            if mode == Mode::V2
+                && let Some(v2) = self.v2
+            {
+                self.cgroup.v2.set_mode(v2);
+            }
+        }
+
         #[cfg(debug_assertions)]
         {
             log::debug!("cgroup挂载情况:{:?}", self.mode);
@@ -123,7 +137,6 @@ impl Freezer {
         }
         loop {
             inotify.read_events_blocking(&mut [0; 1024])?;
-            self.app.refresh_packages()?;
             let visible_app = self.get_visible_app();
 
             #[cfg(debug_assertions)]
@@ -144,7 +157,7 @@ impl Freezer {
     }
 
     fn freezer(&mut self) {
-        let visible_app = self.get_visible_app();
+        //let visible_app = self.get_visible_app();
         let mode = match self.mode {
             Some(s) => s,
             None => {
@@ -153,6 +166,7 @@ impl Freezer {
             }
         };
         let mut freezePath = vec![];
+
         for i in self.pendingHandleList.list.clone() {
             match mode {
                 Mode::V2 => match self.v2 {
@@ -178,11 +192,14 @@ impl Freezer {
                 Mode::SIGSTOP => freezePath.push(PathBuf::new()),
             };
         }
+
         #[cfg(debug_assertions)]
         {
-            for display in freezePath {
+            for display in freezePath.clone() {
                 log::debug!("{}", display.display());
             }
         }
+
+        self.cgroup.frozen(mode, freezePath);
     }
 }
