@@ -8,11 +8,6 @@ use anyhow::{Context, Result};
 use lazy_static::lazy_static;
 use regex::Regex;
 
-lazy_static! {
-    static ref PKG_REGEX: Regex =
-        Regex::new(r"^(?<pkg>\S+)\s+(?<uid>\d+)\s+\d+\s+/data/data/\S+").unwrap();
-}
-
 pub struct App {
     pids: HashMap<String, usize>,
     packages: HashMap<String, usize>,
@@ -21,34 +16,31 @@ pub struct App {
 
 impl App {
     pub fn new() -> Result<Self> {
-        let mut s = Self {
-            pids: HashMap::new(),
-            packages: HashMap::new(),
-            whitelist: HashSet::new(),
-        };
-        let _ = s.refresh_packages();
-        Ok(s)
-    }
+        let path = "/data/system/packages.list";
+        let file = std::fs::File::open(path).with_context(|| format!("未能打开 {path}"))?;
+        let mut apps = HashMap::new();
+        for line in std::io::BufRead::lines(std::io::BufReader::new(file)) {
+            let line = line.with_context(|| "读取行时出错")?;
+            let parts: Vec<&str> = line.split_whitespace().collect();
 
-    pub fn refresh_packages(&mut self) -> Result<()> {
-        let pkg_list_path = Path::new("/data/system/packages.list");
-        let content = fs::read_to_string(pkg_list_path)
-            .with_context(|| format!("无法读取 {}", pkg_list_path.display()))?;
-        let mut packages = HashMap::new();
-
-        for line in content.lines() {
-            if let Some(caps) = PKG_REGEX.captures(line) {
-                let pkg = caps["pkg"].to_string();
-                let uid = caps["uid"]
-                    .parse::<usize>()
-                    .with_context(|| format!("无效UID格式: {} in line: {}", &caps["uid"], line))?;
-
-                packages.insert(pkg, uid);
+            if parts.len() < 2 {
+                continue;
             }
-        }
 
-        self.packages = packages;
-        Ok(())
+            let uid = parts[1]
+                .parse::<usize>()
+                .with_context(|| format!("无效的UID格式: {}", parts[1]))?;
+
+            if uid < 10000 {
+                continue;
+            }
+            apps.insert(parts[0].to_string(), uid);
+        }
+        Ok(Self {
+            pids: HashMap::new(),
+            packages: apps,
+            whitelist: HashSet::new(),
+        })
     }
 
     pub fn get_pids(&mut self, package: &str) -> Result<HashMap<String, usize>> {
