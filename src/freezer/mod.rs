@@ -1,6 +1,6 @@
-use std::{collections::HashSet, path::PathBuf, process::Command, str::FromStr};
+use std::{collections::HashSet, fs::read_dir, path::PathBuf, process::Command, str::FromStr};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use app::App;
 use cgroup::Cgroup;
 use r#enum::{Mode, V1Mode, V2Mode};
@@ -156,7 +156,7 @@ impl Freezer {
         }
     }
 
-    fn freezer(&mut self) {
+    fn freezer(&mut self) -> Result<()> {
         //let visible_app = self.get_visible_app();
         let mode = match self.mode {
             Some(s) => s,
@@ -171,12 +171,25 @@ impl Freezer {
             match mode {
                 Mode::V2 => match self.v2 {
                     Some(v2) => match v2 {
-                        V2Mode::Uid => freezePath.push(
-                            PathBuf::from_str(
-                                format!("/sys/fs/cgroup/uid_{}/cgroup.freeze", { i }).as_str(),
-                            )
-                            .unwrap(),
-                        ),
+                        V2Mode::Uid => {
+                            let mut pid = Vec::new();
+                            let entries = read_dir(format!("/sys/fs/cgroup/uid_{}/", { i }))?;
+
+                            for entry in entries {
+                                let entry = entry?;
+                                let path = entry.path();
+
+                                if let Some(file_name) = path.file_name() {
+                                    if file_name.to_string_lossy().starts_with("pid_") {
+                                        pid.push(path);
+                                    }
+                                }
+                            }
+
+                            for i in pid {
+                                freezePath.push(i);
+                            }
+                        }
                         V2Mode::Frozen => freezePath.push(
                             PathBuf::from_str("/sys/fs/cgroup/frozen/cgroup.freeze").unwrap(),
                         ),
@@ -201,5 +214,6 @@ impl Freezer {
         }
 
         self.cgroup.frozen(mode, freezePath);
+        Ok(())
     }
 }
