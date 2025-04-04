@@ -9,7 +9,8 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 lazy_static! {
-    static ref PM_REGEX: Regex = Regex::new(r"package:(?<pkg>\S+) uid:(?<uid>\d+)").unwrap();
+    static ref PKG_REGEX: Regex =
+        Regex::new(r"^(?<pkg>\S+)\s+(?<uid>\d+)\s+\d+\s+/data/data/\S+").unwrap();
 }
 
 pub struct App {
@@ -30,42 +31,23 @@ impl App {
     }
 
     pub fn refresh_packages(&mut self) -> Result<()> {
-        let proc_dir = fs::read_dir("/proc").with_context(|| "无法读取/proc/")?;
-        let mut map = HashMap::new();
-        for entry in proc_dir {
-            let entry = match entry {
-                Ok(e) => e,
-                Err(_) => continue,
-            };
-            let file_name = entry.file_name();
-            let pid_str = match file_name.to_str() {
-                Some(s) => s,
-                None => continue,
-            };
+        let pkg_list_path = Path::new("/data/system/packages.list");
+        let content = fs::read_to_string(pkg_list_path)
+            .with_context(|| format!("无法读取 {}", pkg_list_path.display()))?;
+        let mut packages = HashMap::new();
 
-            let status_path = Path::new("/proc").join(&pid_str).join("status");
-            let status_content = match fs::read_to_string(&status_path) {
-                Ok(c) => c,
-                Err(_) => continue,
-            };
-            let process_uid = match Self::parse_uid_from_status(&status_content) {
-                Some(uid) => uid,
-                None => continue,
-            };
+        for line in content.lines() {
+            if let Some(caps) = PKG_REGEX.captures(line) {
+                let pkg = caps["pkg"].to_string();
+                let uid = caps["uid"]
+                    .parse::<usize>()
+                    .with_context(|| format!("无效UID格式: {} in line: {}", &caps["uid"], line))?;
 
-            if process_uid < 10000 {
-                continue;
+                packages.insert(pkg, uid);
             }
-
-            let cmdline_path = Path::new("/proc").join(pid_str).join("cmdline");
-            let cmdline = match fs::read_to_string(&cmdline_path) {
-                Ok(c) => c,
-                Err(_) => continue,
-            };
-
-            map.insert(cmdline.trim_matches('\0').to_string(), process_uid);
         }
-        self.packages = map.clone();
+
+        self.packages = packages;
         Ok(())
     }
 
@@ -114,14 +96,6 @@ impl App {
         {
             log::debug!("白名单应用:{:?}", self.whitelist);
         }
-    }
-
-    fn parse_uid_from_status(context: &str) -> Option<usize> {
-        context
-            .lines()
-            .find(|line| line.starts_with("Uid:"))
-            .and_then(|line| line.split_whitespace().nth(1))
-            .and_then(|s| s.parse::<usize>().ok())
     }
 
     pub fn contains(&self, package: &str) -> bool {
