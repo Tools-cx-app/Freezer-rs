@@ -7,6 +7,7 @@
     clippy::cast_precision_loss,
     clippy::cast_possible_wrap
 )]
+#![feature(let_chains)]
 
 use anyhow::Result;
 
