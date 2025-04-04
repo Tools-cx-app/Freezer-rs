@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fs::read_dir, path::PathBuf, process::Command, str::FromStr};
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use app::App;
 use cgroup::Cgroup;
 use r#enum::{Mode, V1Mode, V2Mode};
