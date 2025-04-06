@@ -59,29 +59,36 @@ impl Freeze {
         }
     }
 
-    pub fn enter_looper(&mut self) -> Result<()>{
-        let (send, receiver) = mpsc::channel();
+    pub fn enter_looper(&mut self) -> Result<()> {
+        let (visible_app_sender, visible_app_receiver) = mpsc::channel();
+        let (home_sender, home_receiver) = mpsc::channel();
         let app_arc = Arc::clone(&self.app);
+        let home = Arc::clone(&self.app);
+        let mut inotify = inotify::Inotify::init()?;
 
         thread::spawn(move || -> Result<()> {
             let mut locked = app_arc.lock().unwrap();
             let mut inotify = inotify::Inotify::init()?;
 
             inotify.watches().add("/dev/input", WatchMask::ACCESS)?;
-            
+
             loop {
-                log::debug!("{:?}", locked.get_visible_app());
+                #[cfg(debug_assertions)]
+                {
+                    log::debug!("{:?}", locked.get_visible_app());
+                }
                 inotify.read_events_blocking(&mut [0; 1024])?;
-                send.send(locked.get_visible_app())?;
+                visible_app_sender.send(locked.get_visible_app())?;
+                home_sender.send(locked.home_uid)?;
             }
         });
-        loop {
-        let mut inotify = inotify::Inotify::init()?;
 
-            inotify.watches().add("/dev/input", WatchMask::ACCESS)?;
+        inotify.watches().add("/dev/input", WatchMask::ACCESS)?;
+
+        loop {
             inotify.read_events_blocking(&mut [0; 1024])?;
-            log::debug!("{:?}", receiver.recv());
+            log::debug!("列表{:?}", visible_app_receiver.recv());
+            log::debug!("桌面{:?}", home_receiver.recv());
         }
-        Ok(())
     }
 }

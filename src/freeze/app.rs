@@ -378,7 +378,8 @@ static WHITE_LIST: [&str; 365] = [
 ];
 
 pub struct App {
-    home_uid: usize,
+    pub home_uid: usize,
+    has_home: bool,
     pub packages: HashMap<String, usize>,
     whitelist: HashSet<usize>,
 }
@@ -424,6 +425,7 @@ impl App {
         Ok(Self {
             home_uid: 0,
             packages,
+            has_home: false,
             whitelist,
         })
     }
@@ -436,8 +438,25 @@ impl App {
         let output_str = String::from_utf8_lossy(&output.stdout);
         let lines = output_str.lines();
         let mut cur_foreground_app = HashSet::new();
+        let mut last_line = "";
         for line in lines {
-            if line.starts_with("  taskId=") && line.contains("visible=true") {
+            if !self.has_home && line.contains("mActivityType=home") {
+                self.has_home = true;
+                last_line = line;
+                continue;
+            }
+            if line.starts_with("  taskId=") {
+                if let Some(caps) = APP_REGEX.captures(line) {
+                    let package = caps.get(1).unwrap().as_str();
+                    if self.packages.contains_key(package) {
+                        let uid = *self.packages.get(package).unwrap();
+                        if last_line.contains("mActivityType=home") {
+                            self.home_uid = uid;
+                        }
+                    }
+                }
+            }
+            if line.starts_with("  taskId=")&& line.contains("visible=true") {
                 if let Some(caps) = APP_REGEX.captures(line) {
                     let package = caps.get(1).unwrap().as_str();
                     if self.packages.contains_key(package) {
