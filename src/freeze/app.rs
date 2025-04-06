@@ -1,12 +1,15 @@
 use std::{
     collections::{HashMap, HashSet},
-    fs,
-    path::Path,
+    process::Command,
 };
 
 use anyhow::{Context, Result};
+use regex::Regex;
 
-static WHITE_LIST: [&str; 366] = [
+lazy_static::lazy_static! {
+    static ref APP_REGEX: Regex = Regex::new(r".*\{([^/]+)/").unwrap();
+}
+static WHITE_LIST: [&str; 365] = [
     "com.xiaomi.mibrain.speech",  // 系统语音引擎
     "com.xiaomi.scanner",         // 小爱视觉
     "com.xiaomi.xmsf",            // Push
@@ -18,7 +21,6 @@ static WHITE_LIST: [&str; 366] = [
     "com.miui.notes",             // 笔记  冻结会导致系统侧边栏卡住
     "com.miui.calculator",        // 计算器
     "com.miui.compass",           // 指南针
-    "io.github.jark006.freezeit", // 冻它
     "com.miui.mediaeditor",       // 相册编辑
     "com.miui.personalassistant", // 个人助理
     "com.miui.vipservice",        // 我的服务
@@ -376,103 +378,81 @@ static WHITE_LIST: [&str; 366] = [
 ];
 
 pub struct App {
-    pids: HashMap<String, usize>,
-    packages: HashMap<String, usize>,
+    home_uid: usize,
+    pub packages: HashMap<String, usize>,
     whitelist: HashSet<usize>,
 }
 
 impl App {
     pub fn new() -> Result<Self> {
-        let mut app = Self {
-            pids: HashMap::new(),
-            packages: HashMap::new(),
-            whitelist: HashSet::new(),
-        };
-        let path = "/data/system/packages.list";
-        let file = std::fs::File::open(path).with_context(|| format!("未能打开 {path}"))?;
-        for line in std::io::BufRead::lines(std::io::BufReader::new(file)) {
-            let line = line.with_context(|| "读取行时出错")?;
-            let parts: Vec<&str> = line.split_whitespace().collect();
+        let output = Command::new("/system/bin/cmd")
+            .args(["package", "list", "packages", "-U"])
+            .output()
+            .context("无法执行 cmd package list packages -U")?;
+        let output = String::from_utf8_lossy(&output.stdout);
+        let mut packages = HashMap::new();
+        let mut whitelist = HashSet::new();
 
-            if parts.len() < 2 {
-                continue;
-            }
+        for line in output.lines() {
+            if line.starts_with("package:") {
+                let Some((pkg_part, uid_part)) = line.split_once(" uid:") else {
+                    continue;
+                };
+                let package = pkg_part.trim_start_matches("package:").trim();
 
-            let uid = parts[1]
-                .parse::<usize>()
-                .with_context(|| format!("无效的UID格式: {}", parts[1]))?;
+                let uid_str = uid_part.split_whitespace().next().unwrap_or("");
+                let uid: usize = uid_str
+                    .parse()
+                    .context(format!("无效的 UID: {}", uid_str))?;
 
-            if uid < 10000 {
-                continue;
-            }
-            app.packages.insert(parts[0].to_string(), uid);
-            let packages = parts[0];
-
-            for package in WHITE_LIST {
-                if packages == package {
-                    app.whitelist.insert(app.get_uid(package));
+                if uid < 1000 {
+                    continue;
                 }
+
+                if WHITE_LIST.contains(&package) {
+                    whitelist.insert(uid);
+                }
+
+                packages.insert(package.to_string(), uid);
             }
-        }
-        Ok(app)
-    }
-
-    pub fn get_pids(&mut self, package: &str) -> Result<HashMap<String, usize>> {
-        let proc_dir = fs::read_dir("/proc").with_context(|| "无法读取/proc/")?;
-        for entry in proc_dir {
-            let entry = match entry {
-                Ok(e) => e,
-                Err(_) => continue,
-            };
-
-            let file_name = entry.file_name();
-            let pid_str = match file_name.to_str() {
-                Some(s) => s,
-                None => continue,
-            };
-
-            let pid = match pid_str.parse::<usize>() {
-                Ok(p) => p,
-                Err(_) => continue,
-            };
-
-            if pid <= 100 {
-                continue;
-            }
-
-            let cmdline_path = Path::new("/proc").join(pid_str).join("cmdline");
-            let cmdline = match fs::read(&cmdline_path) {
-                Ok(c) => c,
-                Err(_) => continue,
-            };
-
-            let cmdline_str = String::from_utf8_lossy(&cmdline);
-            if cmdline_str.starts_with(package) {
-                self.pids.insert(package.to_string(), pid);
-            }
-        }
-        Ok(self.pids.clone())
-    }
-
-    pub fn add_whitelist(&mut self, packages: HashSet<String>) {
-        for package in packages {
-            self.whitelist.insert(self.get_uid(package.as_str()));
         }
         #[cfg(debug_assertions)]
         {
-            log::debug!("白名单应用:{:?}", self.whitelist);
+            log::info!("{:?}", packages);
+            log::info!("{:?}", whitelist);
         }
+        Ok(Self {
+            home_uid: 0,
+            packages,
+            whitelist,
+        })
     }
 
-    pub fn contains(&self, package: &str) -> bool {
-        self.packages.contains_key(package)
+    pub fn get_visible_app(&mut self) -> HashSet<usize> {
+        let output = Command::new("/system/bin/cmd")
+            .args(["activity", "stack", "list"])
+            .output()
+            .expect("无法执行cmd activity stack list");
+        let output_str = String::from_utf8_lossy(&output.stdout);
+        let lines = output_str.lines();
+        let mut cur_foreground_app = HashSet::new();
+        for line in lines {
+            if line.starts_with("  taskId=") && line.contains("visible=true") {
+                if let Some(caps) = APP_REGEX.captures(line) {
+                    let package = caps.get(1).unwrap().as_str();
+                    if self.packages.contains_key(package) {
+                        let uid = *self.packages.get(package).unwrap();
+                        if !self.is_whitelist(uid) {
+                            cur_foreground_app.insert(uid);
+                        }
+                    }
+                }
+            }
+        }
+        cur_foreground_app
     }
 
-    pub fn get_uid(&self, package: &str) -> usize {
-        *self.packages.get(package).unwrap()
-    }
-
-    pub fn is_whitelist(&self, uid: usize) -> bool {
+    fn is_whitelist(&self, uid: usize) -> bool {
         self.whitelist.contains(&uid)
     }
 }
