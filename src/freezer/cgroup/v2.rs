@@ -1,4 +1,4 @@
-use std::{fs::write, path::PathBuf, str::FromStr};
+use std::{collections::HashSet, fs::write, path::PathBuf, str::FromStr};
 
 use anyhow::Result;
 
@@ -21,7 +21,7 @@ impl V2 {
         };
     }
 
-    pub fn frozen(&self, path: Vec<PathBuf>) -> Result<()> {
+    pub fn frozen(&self, path: Vec<PathBuf>, uid: HashSet<usize>) -> Result<()> {
         //let path = PathBuf::from_str("/sys/fs/cgroup/uid_0/cgroup.freeze")?;
         for p in path {
             if !p.exists() {
@@ -30,6 +30,9 @@ impl V2 {
             }
             write(&p, "1".as_bytes())?;
             log::info!("{}已冻结", p.display());
+        }
+        for u in uid {
+            write("/sys/fs/cgroup/frozen/cgroup.freeze", [u as u8])?;
         }
         Ok(())
     }

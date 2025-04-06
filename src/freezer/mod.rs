@@ -157,7 +157,7 @@ impl Freezer {
     }
 
     fn freezer(&mut self) -> Result<()> {
-        //let visible_app = self.get_visible_app();
+        let visible_app = self.get_visible_app();
         let mode = match self.mode {
             Some(s) => s,
             None => {
@@ -213,7 +213,7 @@ impl Freezer {
             }
         }
 
-        self.cgroup.frozen(mode, freezePath);
+        self.cgroup.frozen(mode, freezePath, visible_app);
         Ok(())
     }
 }
