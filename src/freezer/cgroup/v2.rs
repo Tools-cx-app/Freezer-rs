@@ -21,8 +21,7 @@ impl V2 {
         };
     }
 
-    pub fn frozen(&self, path: Vec<PathBuf>, uid: HashSet<usize>) -> Result<()> {
-        //let path = PathBuf::from_str("/sys/fs/cgroup/uid_0/cgroup.freeze")?;
+    pub fn frozen(&self, path: Vec<PathBuf>) -> Result<()> {
         for p in path {
             if !p.exists() {
                 log::error!("{}不存在", p.display());
@@ -31,19 +30,18 @@ impl V2 {
             write(&p, "1".as_bytes())?;
             log::info!("{}已冻结", p.display());
         }
-        for u in uid {
-            write("/sys/fs/cgroup/frozen/cgroup.freeze", [u as u8])?;
-        }
         Ok(())
     }
 
-    pub fn unfrozen(&self) -> Result<()> {
-        let path = PathBuf::from_str("/dev/freezer/unfrozen/cgroup.procs")?;
-        if !path.exists() {
-            log::error!("{}不存在", path.display());
-            return Ok(());
+    pub fn unfrozen(&self, path: Vec<PathBuf>) -> Result<()> {
+        for p in path {
+            if !p.exists() {
+                log::error!("{}不存在", p.display());
+                return Ok(());
+            }
+            write(&p, "0".as_bytes())?;
+            log::info!("{}已解冻", p.display());
         }
-        write(path, [0 as u8])?;
         Ok(())
     }
 }

@@ -166,6 +166,7 @@ impl Freezer {
             }
         };
         let mut freezePath = vec![];
+        let mut unfreezePath = vec![];
 
         for i in self.pendingHandleList.list.clone() {
             match mode {
@@ -191,7 +192,7 @@ impl Freezer {
                             }
                         }
                         V2Mode::Frozen => freezePath.push(
-                            PathBuf::from_str("/sys/fs/cgroup/frozen/cgroup.freeze").unwrap(),
+                            PathBuf::from_str("/sys/fs/cgroup/frozen/cgroup.procs").unwrap(),
                         ),
                     },
                     None => {
@@ -205,6 +206,45 @@ impl Freezer {
                 Mode::SIGSTOP => freezePath.push(PathBuf::new()),
             };
         }
+        
+        for i in self.pendingHandleList.list.clone() {
+            match mode {
+                Mode::V2 => match self.v2 {
+                    Some(v2) => match v2 {
+                        V2Mode::Uid => {
+                            let mut pid = Vec::new();
+                            let entries = read_dir(format!("/sys/fs/cgroup/uid_{}/", { i }))?;
+
+                            for entry in entries {
+                                let entry = entry?;
+                                let path = entry.path();
+
+                                if let Some(file_name) = path.file_name() {
+                                    if file_name.to_string_lossy().starts_with("pid_") {
+                                        pid.push(path);
+                                    }
+                                }
+                            }
+
+                            for i in pid {
+                                unfreezePath.push(i);
+                            }
+                        }
+                        V2Mode::Frozen => unfreezePath.push(
+                            PathBuf::from_str("/sys/fs/cgroup/unfrozen/cgroup.procs").unwrap(),
+                        ),
+                    },
+                    None => {
+                        log::error!("无法判断V2类型");
+                        unfreezePath.push(PathBuf::new())
+                    }
+                },
+                Mode::V1 => {
+                    unfreezePath.push(PathBuf::from_str("/dev/freezer/unfrozen/cgroup.procs").unwrap())
+                }
+                Mode::SIGSTOP => unfreezePath.push(PathBuf::new()),
+            };
+        }
 
         #[cfg(debug_assertions)]
         {
@@ -213,7 +253,8 @@ impl Freezer {
             }
         }
 
-        self.cgroup.frozen(mode, freezePath, visible_app);
+        self.cgroup.frozen(mode, freezePath.clone(), visible_app.clone());
+        self.cgroup.unfrozen(mode, freezePath.clone(), visible_app.clone());
         Ok(())
     }
 }
