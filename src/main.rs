@@ -12,12 +12,12 @@
 
 use anyhow::Result;
 
-mod freezer;
+mod freeze;
 mod logger;
 
 fn main() -> Result<()> {
     logger::log_init()?;
-    let mut freezer = freezer::Freezer::new()?;
-    freezer.enter_looper()?;
+    let mut freeze = freeze::Freeze::new();
+    freeze.enter_looper()?;
     Ok(())
 }
