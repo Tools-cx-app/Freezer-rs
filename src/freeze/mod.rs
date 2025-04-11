@@ -111,6 +111,7 @@ impl Freeze {
             loop {
                 inotify.read_events_blocking(&mut [0; 1024])?;
                 locked.load_config();
+                log::debug!("当前配置文件:{:?}", locked);
                 config_sender.send((locked.mode, locked.whitelist.clone()))?;
             }
         });
