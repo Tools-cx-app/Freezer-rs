@@ -145,7 +145,7 @@ impl Freeze {
                 }
             }
             for i in self.PendingHandleList.list.clone() {
-                log::debug!("PendingHandleList列表pids{:?}", App::GetPids(i));
+                log::debug!("{i}列表pids{:?}", App::GetPids(i));
             }
             log::debug!("PendingHandleList列表{:?}", self.PendingHandleList.list);
             log::debug!("前台{:?}", visible_app_receiver.recv());
