@@ -111,7 +111,6 @@ impl Freeze {
             loop {
                 inotify.read_events_blocking(&mut [0; 1024])?;
                 locked.load_config();
-                log::debug!("当前配置文件:{:?}", locked);
                 config_sender.send((locked.mode, locked.whitelist.clone()))?;
             }
         });
@@ -144,6 +143,9 @@ impl Freeze {
                 if let Ok(VisiblePackage) = visible_app_receiver.recv() {
                     self.UpdateAppProcess(BackGroundPackages, VisiblePackage);
                 }
+            }
+            for i in self.PendingHandleList.list.clone() {
+                log::debug!("PendingHandleList列表pids{:?}", App::GetPids(i));
             }
             log::debug!("PendingHandleList列表{:?}", self.PendingHandleList.list);
             log::debug!("前台{:?}", visible_app_receiver.recv());
