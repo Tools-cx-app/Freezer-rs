@@ -63,7 +63,10 @@ impl Freeze {
         Self {
             app: Arc::new(Mutex::new(App::new().unwrap())),
             mode: None,
-            config: Arc::new(Mutex::new(FreezeMode::AUTO)),
+            config: Arc::new(Mutex::new(Config {
+                mode: FreezeMode::AUTO,
+                whitelist: HashSet::new(),
+            })),
             PendingHandleList: PendingHandleList::new(),
         }
     }
