@@ -13,7 +13,7 @@ use serde::Deserialize;
 mod app;
 mod config;
 
-#[derive(Deserialize, Clone, Copy)]
+#[derive(Deserialize, Debug, Clone, Copy)]
 pub enum FreezeMode {
     V1(V1),
     V2(V2),
@@ -21,12 +21,12 @@ pub enum FreezeMode {
     AUTO,
 }
 
-#[derive(Deserialize, Clone, Copy)]
+#[derive(Deserialize, Debug, Clone, Copy)]
 pub enum V1 {
     Frozen,
 }
 
-#[derive(Deserialize, Clone, Copy)]
+#[derive(Deserialize, Debug, Clone, Copy)]
 pub enum V2 {
     Uid,
     Frozen,
@@ -100,10 +100,13 @@ impl Freeze {
             let mut locked = config_arc.lock().unwrap();
             let mut inotify = inotify::Inotify::init()?;
 
-            inotify.watches().add(
-                "/storage/emulated/0/Android/freezer.toml",
-                WatchMask::ACCESS,
-            )?;
+            inotify
+                .watches()
+                .add("/data/media/0/Android/freezer.toml", WatchMask::ACCESS)?;
+
+            locked.load_config();
+            log::debug!("当前配置文件:{:?}", locked);
+            config_sender.send((locked.mode, locked.whitelist.clone()))?;
 
             loop {
                 inotify.read_events_blocking(&mut [0; 1024])?;
