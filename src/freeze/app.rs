@@ -380,7 +380,9 @@ static WHITE_LIST: [&str; 365] = [
 pub struct App {
     pub home_uid: usize,
     has_home: bool,
-    pub packages: HashMap<String, usize>,
+    AllPackages: HashMap<String, usize>,
+    pub BackGroundPackages: HashMap<String, usize>,
+    pub VisiblePackage: HashMap<String, usize>,
     whitelist: HashSet<usize>,
 }
 
@@ -417,27 +419,28 @@ impl App {
                 packages.insert(package.to_string(), uid);
             }
         }
-        #[cfg(debug_assertions)]
+        /*#[cfg(debug_assertions)]
         {
             log::info!("{:?}", packages);
             log::info!("{:?}", whitelist);
-        }
+        }*/
         Ok(Self {
             home_uid: 0,
-            packages,
+            AllPackages: packages,
+            VisiblePackage: HashMap::new(),
+            BackGroundPackages: HashMap::new(),
             has_home: false,
             whitelist,
         })
     }
 
-    pub fn get_visible_app(&mut self) -> HashSet<usize> {
+    pub fn get_visible_app(&mut self) {
         let output = Command::new("/system/bin/cmd")
             .args(["activity", "stack", "list"])
             .output()
             .expect("无法执行cmd activity stack list");
         let output_str = String::from_utf8_lossy(&output.stdout);
         let lines = output_str.lines();
-        let mut cur_foreground_app = HashSet::new();
         let mut last_line = "";
         for line in lines {
             if !self.has_home && line.contains("mActivityType=home") {
@@ -448,27 +451,31 @@ impl App {
             if line.starts_with("  taskId=") {
                 if let Some(caps) = APP_REGEX.captures(line) {
                     let package = caps.get(1).unwrap().as_str();
-                    if self.packages.contains_key(package) {
-                        let uid = *self.packages.get(package).unwrap();
+                    if self.AllPackages.contains_key(package) {
+                        let uid = *self.AllPackages.get(package).unwrap();
                         if last_line.contains("mActivityType=home") {
                             self.home_uid = uid;
                         }
                     }
                 }
             }
-            if line.starts_with("  taskId=")&& line.contains("visible=true") {
+            if line.starts_with("  taskId=")
+            {
                 if let Some(caps) = APP_REGEX.captures(line) {
                     let package = caps.get(1).unwrap().as_str();
-                    if self.packages.contains_key(package) {
-                        let uid = *self.packages.get(package).unwrap();
+                    if self.AllPackages.contains_key(package) {
+                        let uid = *self.AllPackages.get(package).unwrap();
                         if !self.is_whitelist(uid) {
-                            cur_foreground_app.insert(uid);
+                            if line.contains("visible=true") {
+                                self.VisiblePackage.insert(package.to_string(), uid);
+                            } else if line.contains("visible=false") {
+                                self.BackGroundPackages.insert(package.to_string(), uid);
+                            }
                         }
                     }
                 }
             }
         }
-        cur_foreground_app
     }
 
     fn is_whitelist(&self, uid: usize) -> bool {

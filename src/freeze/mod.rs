@@ -62,6 +62,7 @@ impl Freeze {
     pub fn enter_looper(&mut self) -> Result<()> {
         let (visible_app_sender, visible_app_receiver) = mpsc::channel();
         let (home_sender, home_receiver) = mpsc::channel();
+        let (background_packages_sender, background_packages_receiver) = mpsc::channel();
         let app_arc = Arc::clone(&self.app);
         let home = Arc::clone(&self.app);
         let mut inotify = inotify::Inotify::init()?;
@@ -73,12 +74,15 @@ impl Freeze {
             inotify.watches().add("/dev/input", WatchMask::ACCESS)?;
 
             loop {
+                /*
                 #[cfg(debug_assertions)]
                 {
                     log::debug!("{:?}", locked.get_visible_app());
-                }
+                }*/
                 inotify.read_events_blocking(&mut [0; 1024])?;
-                visible_app_sender.send(locked.get_visible_app())?;
+                locked.get_visible_app();
+                visible_app_sender.send(locked.VisiblePackage.clone())?;
+                background_packages_sender.send(locked.BackGroundPackages.clone())?;
                 home_sender.send(locked.home_uid)?;
             }
         });
@@ -87,7 +91,8 @@ impl Freeze {
 
         loop {
             inotify.read_events_blocking(&mut [0; 1024])?;
-            log::debug!("列表{:?}", visible_app_receiver.recv());
+            log::debug!("前台{:?}", visible_app_receiver.recv());
+            log::debug!("后台{:?}", background_packages_receiver.recv());
             log::debug!("桌面{:?}", home_receiver.recv());
         }
     }
