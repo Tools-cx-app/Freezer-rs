@@ -11,8 +11,8 @@ use inotify::WatchMask;
 mod app;
 
 pub enum FreezeMode {
-    V1,
-    V2,
+    V1(V1),
+    V2(V2),
     SIGSTOP,
 }
 
