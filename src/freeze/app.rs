@@ -434,6 +434,21 @@ impl App {
         })
     }
 
+    pub fn GetPids(uid: usize) -> Result<Vec<usize>> {
+        let all_procs = procfs::process::all_processes().context("Failed to list processes")?;
+
+        let mut pids = Vec::new();
+        for proc in all_procs {
+            let proc = proc.context("Failed to get process info")?;
+            if let Ok(status) = proc.status() {
+                if status.ruid == uid {
+                    pids.push(proc.pid() as usize);
+                }
+            }
+        }
+        Ok(pids)
+    }
+
     pub fn ReflashPackages(&mut self) {
         let output = Command::new("/system/bin/cmd")
             .args(["activity", "stack", "list"])
