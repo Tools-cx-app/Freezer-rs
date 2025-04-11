@@ -1,25 +1,32 @@
 use std::{
     collections::{HashMap, HashSet},
     sync::{Arc, Mutex, mpsc},
-    thread, usize,
+    thread,
 };
 
 use anyhow::Result;
 use app::App;
+use config::Config;
 use inotify::WatchMask;
+use serde::Deserialize;
 
 mod app;
+mod config;
 
+#[derive(Deserialize, Clone, Copy)]
 pub enum FreezeMode {
     V1(V1),
     V2(V2),
     SIGSTOP,
+    AUTO,
 }
 
+#[derive(Deserialize, Clone, Copy)]
 pub enum V1 {
     Frozen,
 }
 
+#[derive(Deserialize, Clone, Copy)]
 pub enum V2 {
     Uid,
     Frozen,
@@ -28,6 +35,7 @@ pub enum V2 {
 pub struct Freeze {
     mode: Option<FreezeMode>,
     app: Arc<Mutex<App>>,
+    config: Arc<Mutex<Config>>,
     PendingHandleList: PendingHandleList,
 }
 
@@ -55,6 +63,7 @@ impl Freeze {
         Self {
             app: Arc::new(Mutex::new(App::new().unwrap())),
             mode: None,
+            config: Arc::new(Mutex::new(FreezeMode::AUTO)),
             PendingHandleList: PendingHandleList::new(),
         }
     }
@@ -79,9 +88,26 @@ impl Freeze {
         let (visible_app_sender, visible_app_receiver) = mpsc::channel();
         let (home_sender, home_receiver) = mpsc::channel();
         let (background_packages_sender, background_packages_receiver) = mpsc::channel();
+        let (config_sender, config_receiver) = mpsc::channel();
         let app_arc = Arc::clone(&self.app);
-        let home = Arc::clone(&self.app);
+        let config_arc = Arc::clone(&self.config);
         let mut inotify = inotify::Inotify::init()?;
+
+        thread::spawn(move || -> Result<()> {
+            let mut locked = config_arc.lock().unwrap();
+            let mut inotify = inotify::Inotify::init()?;
+
+            inotify.watches().add(
+                "/storage/emulated/0/Android/freezer.toml",
+                WatchMask::ACCESS,
+            )?;
+
+            loop {
+                inotify.read_events_blocking(&mut [0; 1024])?;
+                locked.load_config();
+                config_sender.send((locked.mode, locked.whitelist.clone()))?;
+            }
+        });
 
         thread::spawn(move || -> Result<()> {
             let mut locked = app_arc.lock().unwrap();
