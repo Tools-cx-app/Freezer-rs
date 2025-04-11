@@ -1,5 +1,5 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     sync::{Arc, Mutex, mpsc},
     thread, usize,
 };
@@ -59,6 +59,22 @@ impl Freeze {
         }
     }
 
+    pub fn UpdateAppProcess(
+        &mut self,
+        BackGroundPackages: HashMap<String, usize>,
+        VisiblePackage: HashMap<String, usize>,
+    ) {
+        for (BackGroundPackage, BackGroundUid) in BackGroundPackages {
+            for (_, VisiblePackageUid) in VisiblePackage.clone() {
+                if BackGroundUid == VisiblePackageUid {
+                    self.PendingHandleList.remove(VisiblePackageUid);
+                } else {
+                    self.PendingHandleList.add(BackGroundUid);
+                }
+            }
+        }
+    }
+
     pub fn enter_looper(&mut self) -> Result<()> {
         let (visible_app_sender, visible_app_receiver) = mpsc::channel();
         let (home_sender, home_receiver) = mpsc::channel();
@@ -80,7 +96,7 @@ impl Freeze {
                     log::debug!("{:?}", locked.get_visible_app());
                 }*/
                 inotify.read_events_blocking(&mut [0; 1024])?;
-                locked.get_visible_app();
+                locked.ReflashPackages();
                 visible_app_sender.send(locked.VisiblePackage.clone())?;
                 background_packages_sender.send(locked.BackGroundPackages.clone())?;
                 home_sender.send(locked.home_uid)?;
@@ -91,6 +107,12 @@ impl Freeze {
 
         loop {
             inotify.read_events_blocking(&mut [0; 1024])?;
+            if let Ok(BackGroundPackages) = background_packages_receiver.recv() {
+                if let Ok(VisiblePackage) = visible_app_receiver.recv() {
+                    self.UpdateAppProcess(BackGroundPackages, VisiblePackage);
+                }
+            }
+            log::debug!("PendingHandleList列表{:?}", self.PendingHandleList.list);
             log::debug!("前台{:?}", visible_app_receiver.recv());
             log::debug!("后台{:?}", background_packages_receiver.recv());
             log::debug!("桌面{:?}", home_receiver.recv());

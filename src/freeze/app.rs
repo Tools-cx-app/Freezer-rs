@@ -434,7 +434,7 @@ impl App {
         })
     }
 
-    pub fn get_visible_app(&mut self) {
+    pub fn ReflashPackages(&mut self) {
         let output = Command::new("/system/bin/cmd")
             .args(["activity", "stack", "list"])
             .output()
@@ -459,8 +459,7 @@ impl App {
                     }
                 }
             }
-            if line.starts_with("  taskId=")
-            {
+            if line.starts_with("  taskId=") {
                 if let Some(caps) = APP_REGEX.captures(line) {
                     let package = caps.get(1).unwrap().as_str();
                     if self.AllPackages.contains_key(package) {
