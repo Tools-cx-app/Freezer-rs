@@ -4,7 +4,7 @@ use std::{
     thread,
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use app::App;
 use config::Config;
 use inotify::WatchMask;
@@ -12,6 +12,7 @@ use serde::Deserialize;
 
 mod app;
 mod config;
+mod freezer;
 
 #[derive(Deserialize, Debug, Clone, Copy)]
 pub enum FreezeMode {
@@ -102,15 +103,17 @@ impl Freeze {
 
             inotify
                 .watches()
-                .add("/data/media/0/Android/freezer.toml", WatchMask::ACCESS)?;
+                .add("/data/freezer.toml", WatchMask::ACCESS)?;
 
-            locked.load_config();
+            locked.load_config().context("无法获取配置文件")?;
             log::debug!("当前配置文件:{:?}", locked);
             config_sender.send((locked.mode, locked.whitelist.clone()))?;
 
             loop {
-                inotify.read_events_blocking(&mut [0; 1024])?;
-                locked.load_config();
+                inotify
+                    .read_events_blocking(&mut [0; 1024])
+                    .context("无法read")?;
+                locked.load_config().context("无法获取配置文件")?;
                 config_sender.send((locked.mode, locked.whitelist.clone()))?;
             }
         });
@@ -144,6 +147,9 @@ impl Freeze {
                     self.UpdateAppProcess(BackGroundPackages, VisiblePackage);
                 }
             }
+            if let Err(e) = config_receiver.recv() {
+                log::error!("配置文件读取失败{e}");
+            }
             for i in self.PendingHandleList.list.clone() {
                 log::debug!("{i}列表pids{:?}", App::GetPids(i));
             }
@@ -151,6 +157,7 @@ impl Freeze {
             log::debug!("前台{:?}", visible_app_receiver.recv());
             log::debug!("后台{:?}", background_packages_receiver.recv());
             log::debug!("桌面{:?}", home_receiver.recv());
+            log::debug!("当前配置文件:{:?}", config_receiver.recv());
         }
     }
 }

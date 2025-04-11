@@ -13,9 +13,8 @@ pub struct Config {
 
 impl Config {
     pub fn load_config(&mut self) -> Result<Self> {
-        let file = fs::read_to_string("/data/media/0/Android/freezer.toml")
-            .context("无法读取配置文件")?;
-        let content: Self = toml::from_str(file.as_str())?;
+        let file = fs::read_to_string("/data/freezer.toml").context("无法读取配置文件")?;
+        let content: Self = toml::from_str(file.as_str()).context("配置文件错误")?;
 
         Ok(content)
     }
