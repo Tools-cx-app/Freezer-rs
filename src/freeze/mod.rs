@@ -98,7 +98,7 @@ impl Freeze {
         let app_arc = Arc::clone(&self.app);
         let config_arc = Arc::clone(&self.config);
         let mut inotify = inotify::Inotify::init()?;
-        let mut freezer = Freezer::new(self.PendingHandleList.clone());
+        let mut freezer = Freezer::new();
 
         thread::spawn(move || -> Result<()> {
             let mut locked = config_arc.lock().unwrap();
@@ -143,6 +143,11 @@ impl Freeze {
 
         inotify.watches().add("/dev/input", WatchMask::ACCESS)?;
 
+        if let Ok(c) = config_receiver.recv() {
+            let (mode, _) = c;
+            freezer.SetFreezerMode(mode);
+        }
+
         loop {
             inotify.read_events_blocking(&mut [0; 1024])?;
             if let Ok(BackGroundPackages) = background_packages_receiver.recv() {
@@ -153,7 +158,6 @@ impl Freeze {
             if let Err(e) = config_receiver.recv() {
                 log::error!("配置文件读取失败{e}");
             }
-            freezer.SetFreezerMode(self.mode);
             #[cfg(debug_assertions)]
             {
                 for i in self.PendingHandleList.list.clone() {
