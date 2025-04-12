@@ -10,13 +10,23 @@
 #![feature(let_chains)]
 #![allow(non_snake_case)]
 
+use std::sync::Mutex;
+
 use anyhow::Result;
 
 mod freeze;
 mod logger;
+mod socket;
+
+lazy_static::lazy_static! {
+    static ref SocketLog: Mutex<socket::SocketLog> = Mutex::new(socket::SocketLog::new().unwrap());
+}
 
 fn main() -> Result<()> {
     logger::log_init()?;
+    let mut socket = socket::SocketLog::new()?;
+    socket.SocketInit()?;
+    *SocketLog.lock().unwrap() = socket;
     let mut freeze = freeze::Freeze::new();
     freeze.enter_looper()?;
     Ok(())
