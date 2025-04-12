@@ -109,7 +109,7 @@ impl Freeze {
                 .add("/data/freezer.toml", WatchMask::ACCESS)?;
 
             locked.load_config().context("无法获取配置文件")?;
-            log::debug!("当前配置文件:{:?}", locked);
+            log::debug!("配置文件:{:?}", locked);
             config_sender.send((locked.mode, locked.whitelist.clone()))?;
 
             loop {
