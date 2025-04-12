@@ -7,6 +7,7 @@ use std::{
 use anyhow::{Context, Result};
 use app::App;
 use config::Config;
+use freezer::Freezer;
 use inotify::WatchMask;
 use serde::Deserialize;
 
@@ -34,12 +35,13 @@ pub enum V2 {
 }
 
 pub struct Freeze {
-    mode: Option<FreezeMode>,
+    mode: FreezeMode,
     app: Arc<Mutex<App>>,
     config: Arc<Mutex<Config>>,
     PendingHandleList: PendingHandleList,
 }
 
+#[derive(Clone)]
 struct PendingHandleList {
     list: HashSet<usize>,
 }
@@ -63,7 +65,7 @@ impl Freeze {
     pub fn new() -> Self {
         Self {
             app: Arc::new(Mutex::new(App::new().unwrap())),
-            mode: None,
+            mode: FreezeMode::AUTO,
             config: Arc::new(Mutex::new(Config {
                 mode: FreezeMode::AUTO,
                 whitelist: HashSet::new(),
@@ -96,6 +98,7 @@ impl Freeze {
         let app_arc = Arc::clone(&self.app);
         let config_arc = Arc::clone(&self.config);
         let mut inotify = inotify::Inotify::init()?;
+        let mut freezer = Freezer::new(self.PendingHandleList.clone());
 
         thread::spawn(move || -> Result<()> {
             let mut locked = config_arc.lock().unwrap();
@@ -150,14 +153,18 @@ impl Freeze {
             if let Err(e) = config_receiver.recv() {
                 log::error!("配置文件读取失败{e}");
             }
-            for i in self.PendingHandleList.list.clone() {
-                log::debug!("{i}列表pids{:?}", App::GetPids(i));
+            freezer.SetFreezerMode(self.mode);
+            #[cfg(debug_assertions)]
+            {
+                for i in self.PendingHandleList.list.clone() {
+                    log::debug!("{i}列表pids{:?}", App::GetPids(i));
+                }
+                log::debug!("PendingHandleList列表{:?}", self.PendingHandleList.list);
+                log::debug!("前台{:?}", visible_app_receiver.recv());
+                log::debug!("后台{:?}", background_packages_receiver.recv());
+                log::debug!("桌面{:?}", home_receiver.recv());
+                log::debug!("当前配置文件:{:?}", config_receiver.recv());
             }
-            log::debug!("PendingHandleList列表{:?}", self.PendingHandleList.list);
-            log::debug!("前台{:?}", visible_app_receiver.recv());
-            log::debug!("后台{:?}", background_packages_receiver.recv());
-            log::debug!("桌面{:?}", home_receiver.recv());
-            log::debug!("当前配置文件:{:?}", config_receiver.recv());
         }
     }
 }
