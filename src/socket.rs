@@ -18,7 +18,7 @@ impl SocketLog {
         })
     }
 
-    pub fn SocketInit(&mut self) -> Result<()> {
+    pub fn SocketInit(&self) -> Result<()> {
         self.socket.set_reuse_address(true)?;
 
         let addr: SocketAddr = "0.0.0.0:25560".parse()?;
@@ -28,7 +28,7 @@ impl SocketLog {
         Ok(())
     }
 
-    pub fn ReceiveLog(&mut self) -> Result<String> {
+    pub fn ReceiveLog(&self) -> Result<String> {
         let (client_socket, _) = self.socket.accept()?;
         let mut stream = std::net::TcpStream::from(client_socket);
         let mut buffer = [0u8; 1024];
@@ -36,7 +36,7 @@ impl SocketLog {
         Ok(String::from_utf8_lossy(&buffer[..bytes_read]).to_string())
     }
 
-    pub fn SendLog(&mut self, content: &str) -> Result<()> {
+    pub fn SendLog(&self, content: &str) -> Result<()> {
         let (client_socket, _) = self.socket.accept()?;
         let mut stream = std::net::TcpStream::from(client_socket);
         stream.write_all(content.as_bytes())?;
