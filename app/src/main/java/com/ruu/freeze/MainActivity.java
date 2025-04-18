@@ -28,7 +28,7 @@ public class MainActivity extends AppCompatActivity {
         v -> {
           startActivity(new Intent(MainActivity.this, Settings.class));
         });
-    binding.MainSwipRefresh.setOnRefreshListener(
+    binding.container.setOnRefreshListener(
         () -> {
           Refresh();
         });
@@ -43,6 +43,7 @@ public class MainActivity extends AppCompatActivity {
   @Override
   public void onResume() {
     super.onResume();
+        binding.container.setBackground(Data.getBackgroundDrawable(this));
     Refresh();
   }
 
@@ -53,7 +54,7 @@ public class MainActivity extends AppCompatActivity {
     } else {
       binding.statusText.setText("未运行");
     }
-    binding.MainSwipRefresh.setRefreshing(false);
+    binding.container.setRefreshing(false);
   }
 
   public boolean isXposedActive() {

@@ -13,4 +13,11 @@ public class Settings extends AppCompatActivity {
     binding = LayoutSettingsBinding.inflate(getLayoutInflater());
     setContentView(binding.getRoot());
   }
+
+  @Override
+  public void onResume() {
+    super.onResume();
+    binding.container.setBackground(Data.getBackgroundDrawable(this));
+    binding = null;
+  }
 }

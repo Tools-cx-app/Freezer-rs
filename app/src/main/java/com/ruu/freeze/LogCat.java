@@ -67,6 +67,7 @@ public class LogCat extends AppCompatActivity {
   protected void onDestroy() {
     super.onDestroy();
     isRunning = false;
+    binding.container.setBackground(Data.getBackgroundDrawable(this));
     closeResources();
     binding = null;
   }
@@ -75,7 +76,7 @@ public class LogCat extends AppCompatActivity {
   public void onResume() {
     super.onResume();
     isRunning = false;
-    binding.LogSwipRefresh.setRefreshing(false);
+    binding.container.setRefreshing(false);
     closeResources();
   }
 
