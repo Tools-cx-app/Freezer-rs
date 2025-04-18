@@ -55,28 +55,36 @@ public class LogCat extends AppCompatActivity {
   private void updateLogView(final String msg) {
     runOnUiThread(
         () -> {
-          binding.logView.append(msg + "\n");
-          binding.logScrollView.post(
-              () -> {
-                binding.logScrollView.smoothScrollTo(0, binding.forBottom.getBottom());
-              });
+          if (binding == null) {
+            binding.logView.append(msg + "\n");
+            binding.logScrollView.post(
+                () -> {
+                  binding.logScrollView.smoothScrollTo(0, binding.forBottom.getBottom());
+                });
+          }
         });
+  }
+
+  @Override
+  protected void onPause() {
+    super.onPause();
+    isRunning = false;
+    closeResources();
   }
 
   @Override
   protected void onDestroy() {
     super.onDestroy();
     isRunning = false;
-    binding.container.setBackground(Data.getBackgroundDrawable(this));
     closeResources();
-    binding = null;
   }
 
   @Override
   public void onResume() {
     super.onResume();
     isRunning = false;
-    binding.container.setRefreshing(false);
+    binding.container.setBackground(Data.getBackgroundDrawable(this));
+    // binding = null;
     closeResources();
   }
 

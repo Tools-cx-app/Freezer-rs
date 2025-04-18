@@ -18,6 +18,5 @@ public class Settings extends AppCompatActivity {
   public void onResume() {
     super.onResume();
     binding.container.setBackground(Data.getBackgroundDrawable(this));
-    binding = null;
   }
 }
