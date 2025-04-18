@@ -4,6 +4,7 @@ import android.view.LayoutInflater;
 import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+import com.bumptech.glide.Glide;
 import com.ruu.freeze.databinding.ItemAppBinding;
 import java.util.List;
 
@@ -22,13 +23,16 @@ public class AppListAdapter extends RecyclerView.Adapter<AppListAdapter.ViewHold
     return new ViewHolder(binding);
   }
 
-   @Override
-    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        AppInfo app = apps.get(position);
-        holder.binding.tvAppName.setText(app.getName());
-        holder.binding.ivAppIcon.setImageDrawable(app.getIcon());
-    }
+  @Override
+  public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+    AppInfo app = apps.get(position);
+    holder.binding.tvAppName.setText(app.getName());
 
+    Glide.with(holder.itemView.getContext())
+        .load(app.getIcon())
+        .circleCrop()
+        .into(holder.binding.ivAppIcon);
+  }
 
   @Override
   public int getItemCount() {

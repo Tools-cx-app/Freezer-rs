@@ -53,6 +53,8 @@ android {
 dependencies {
     compileOnly("de.robv.android.xposed:api:82")
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+    implementation("com.github.bumptech.glide:glide:4.11.0")
+    annotationProcessor("com.github.bumptech.glide:compiler:4.11.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("com.google.android.material:material:1.9.0")
     implementation("com.geyifeng.immersionbar:immersionbar:3.2.2") {
