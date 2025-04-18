@@ -1,0 +1,68 @@
+package io.github.MoWei.Frozen.hook.Binder;
+
+import de.robv.android.xposed.XC_MethodHook;
+import io.github.MoWei.Frozen.base.AbstractMethodHook;
+import io.github.MoWei.Frozen.base.MethodHook;
+import io.github.MoWei.Frozen.hook.XpUtils;
+import io.github.MoWei.Frozen.hook.Config;
+
+public class MilletBinderHook extends MethodHook {
+    public interface OnUidCapturedListener {
+        void onUidCaptured(int uid);
+    }
+
+    final static String MilletBinder = "[Millet Binder]";
+    Config config;
+    public MilletBinderHook(ClassLoader classLoader) {
+        super(classLoader);
+    }
+
+    @Override
+    public String getTargetClass() {
+        return "com.miui.server.greeze.GreezeManagerService";
+    }
+
+    @Override
+    public String getTargetMethod() {
+        return "reportBinderTrans";
+    }
+
+    @Override
+    public Object[] getTargetParam() {
+        return new Object[] { int.class, int.class, int.class, int.class, int.class, boolean.class, long.class, int.class };
+    }
+
+    private OnUidCapturedListener uidListener;
+
+    // 新增设置监听器方法
+    public void setOnUidCapturedListener(OnUidCapturedListener listener) {
+        this.uidListener = listener;
+    }
+
+    @Override
+    public XC_MethodHook getTargetHook() {
+        return new AbstractMethodHook() {
+            @Override
+            protected void beforeMethod(MethodHookParam param) {
+                boolean isOneway = (boolean) param.args[5];
+                if (isOneway)
+                    return;
+
+                int dstUid = (int) param.args[0];
+                if (!config.managedApp.contains(dstUid)) return;
+                if (uidListener != null) {
+                    uidListener.onUidCaptured(dstUid);
+                }
+                XpUtils.log(MilletBinder, "临时解冻:" + dstUid);
+
+            }
+        };
+    }
+    public String successLog() {
+        return "监听Millet Binder成功";
+    }
+    @Override
+    public boolean isIgnoreError() {
+        return !SystemChecker.isXiaomi(classLoader);
+    }
+}
