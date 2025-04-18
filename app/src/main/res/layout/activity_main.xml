@@ -1,88 +1,96 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-     xmlns:android="http://schemas.android.com/apk/res/android"
-     xmlns:app="http://schemas.android.com/apk/res-auto"
-     xmlns:tools="http://schemas.android.com/tools"
-     android:layout_height="match_parent"
-     android:layout_width="match_parent"
-     android:id="@+id/container"
-     tools:context=".MainActivity">
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_height="match_parent"
+    android:layout_width="match_parent"
+    android:id="@+id/container"
+    tools:context=".MainActivity">
 
     <ScrollView
-         android:layout_height="match_parent"
-         android:layout_width="match_parent">
+        android:layout_height="match_parent"
+        android:layout_width="match_parent">
 
         <LinearLayout
-             android:layout_height="match_parent"
-             android:layout_width="match_parent"
-             android:paddingVertical="10dp"
-             android:orientation="vertical"
-             android:paddingHorizontal="@dimen/width_margin">
+            android:layout_height="match_parent"
+            android:layout_width="match_parent"
+            android:paddingVertical="10dp"
+            android:orientation="vertical"
+            android:paddingHorizontal="@dimen/width_margin">
 
             <androidx.cardview.widget.CardView
-                 android:layout_height="wrap_content"
-                 android:layout_width="match_parent"
-                 android:alpha="0.75"
-                 app:cardUseCompatPadding="true"
-                 app:cardCornerRadius="16dp">
+                android:layout_height="wrap_content"
+                android:layout_width="match_parent"
+                android:alpha="0.75"
+                app:cardUseCompatPadding="true"
+                app:cardCornerRadius="16dp">
 
                 <LinearLayout
-                     android:layout_height="wrap_content"
-                     android:layout_width="match_parent"
-                     android:background="@color/gray_white"
-                     android:padding="5dp"
-                     android:orientation="horizontal"
-                     android:id="@+id/stateLayout">
+                    android:layout_height="wrap_content"
+                    android:layout_width="match_parent"
+                    android:background="@color/gray_white"
+                    android:padding="5dp"
+                    android:orientation="horizontal"
+                    android:id="@+id/stateLayout">
 
                     <ImageView
-                         android:layout_height="match_parent"
-                         android:layout_width="60dp"
-                         android:adjustViewBounds="true"
-                         android:contentDescription="@string/icon"
-                         android:scaleType="centerInside"
-                         android:src="@drawable/logo"
-                         android:padding="5dp"
-                         android:id="@+id/logo"
-                         android:layout_gravity="center" />
+                        android:layout_height="match_parent"
+                        android:layout_width="60dp"
+                        android:adjustViewBounds="true"
+                        android:contentDescription="@string/icon"
+                        android:scaleType="centerInside"
+                        android:src="@drawable/logo"
+                        android:padding="5dp"
+                        android:id="@+id/logo"
+                        android:layout_gravity="center" />
 
                     <TextView
-                         android:layout_height="match_parent"
-                         android:layout_width="match_parent"
-                         android:gravity="center_vertical"
-                         android:padding="5dp"
-                         android:textSize="16sp"
-                         android:id="@+id/statusText"
-                         android:layout_gravity="center" />
+                        android:layout_height="match_parent"
+                        android:layout_width="match_parent"
+                        android:gravity="center_vertical"
+                        android:padding="5dp"
+                        android:textSize="16sp"
+                        android:id="@+id/statusText"
+                        android:layout_gravity="center" />
 
                 </LinearLayout>
 
             </androidx.cardview.widget.CardView>
 
             <LinearLayout
-                 android:layout_height="wrap_content"
-                 android:layout_width="match_parent"
-                 android:background="@color/gray_white"
-                 android:gravity="bottom"
-                 android:padding="5dp"
-                 android:orientation="vertical">
+                android:layout_height="wrap_content"
+                android:layout_width="match_parent"
+                android:background="@color/gray_white"
+                android:gravity="bottom"
+                android:padding="5dp"
+                android:orientation="vertical">
 
                 <com.google.android.material.button.MaterialButton
-                     android:layout_height="wrap_content"
-                     android:layout_width="match_parent"
-                     app:rippleColor="@color/purple_700"
-                     app:backgroundTint="@color/purple_500"
-                     app:cornerRadius="8dp"
-                     android:text="日志查看"
-                     android:id="@+id/LogCat" />
+                    android:layout_height="wrap_content"
+                    android:layout_width="match_parent"
+                    app:rippleColor="@color/purple_700"
+                    app:backgroundTint="@color/purple_500"
+                    app:cornerRadius="8dp"
+                    android:text="日志查看"
+                    android:id="@+id/LogCat" />
 
                 <com.google.android.material.button.MaterialButton
-                     android:layout_height="wrap_content"
-                     android:layout_width="match_parent"
-                     app:rippleColor="@color/purple_700"
-                     app:backgroundTint="@color/purple_500"
-                     app:cornerRadius="8dp"
-                     android:text="设置"
-                     android:id="@+id/Settings" />
+                    android:layout_height="wrap_content"
+                    android:layout_width="match_parent"
+                    app:rippleColor="@color/purple_700"
+                    app:backgroundTint="@color/purple_500"
+                    app:cornerRadius="8dp"
+                    android:text="应用列表"
+                    android:id="@+id/AppList" />
+                <com.google.android.material.button.MaterialButton
+                    android:layout_height="wrap_content"
+                    android:layout_width="match_parent"
+                    app:rippleColor="@color/purple_700"
+                    app:backgroundTint="@color/purple_500"
+                    app:cornerRadius="8dp"
+                    android:text="设置"
+                    android:id="@+id/Settings" />
 
             </LinearLayout>
 

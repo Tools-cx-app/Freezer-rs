@@ -28,6 +28,11 @@ public class MainActivity extends AppCompatActivity {
         v -> {
           startActivity(new Intent(MainActivity.this, Settings.class));
         });
+    
+    binding.AppList.setOnClickListener(
+        v -> {
+          startActivity(new Intent(MainActivity.this, AppList.class));
+        });
     binding.container.setOnRefreshListener(
         () -> {
           Refresh();
