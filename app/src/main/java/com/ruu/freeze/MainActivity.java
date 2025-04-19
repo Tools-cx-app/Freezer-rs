@@ -5,7 +5,6 @@ import android.os.Bundle;
 import android.util.Log;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
-import com.gyf.immersionbar.ImmersionBar;
 import com.ruu.freeze.databinding.ActivityMainBinding;
 
 public class MainActivity extends AppCompatActivity {
@@ -17,7 +16,6 @@ public class MainActivity extends AppCompatActivity {
 
     binding = ActivityMainBinding.inflate(getLayoutInflater());
 
-    ImmersionBar.with(this).transparentBar().init();
     setContentView(binding.getRoot());
 
     binding.LogCat.setOnClickListener(

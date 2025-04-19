@@ -8,7 +8,7 @@ android {
     
     defaultConfig {
         applicationId = "com.ruu.freeze"
-        minSdk = 28
+        minSdk = 29
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
@@ -57,10 +57,6 @@ dependencies {
     annotationProcessor("com.github.bumptech.glide:compiler:4.11.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("com.google.android.material:material:1.9.0")
-    implementation("com.geyifeng.immersionbar:immersionbar:3.2.2") {
-        exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk7")
-        exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")
-    }
    implementation("androidx.appcompat:appcompat:1.6.1") {
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk7")
     }
