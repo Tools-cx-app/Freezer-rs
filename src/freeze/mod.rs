@@ -1,7 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
-    sync::{Arc, Mutex, mpsc},
-    thread,
+    collections::{HashMap, HashSet}, fs, sync::{mpsc, Arc, Mutex}, thread
 };
 
 use anyhow::{Context, Result};
@@ -39,7 +37,7 @@ pub enum V2 {
 pub struct Freeze {
     mode: FreezeMode,
     app: Arc<Mutex<App>>,
-    socket: Arc<Mutex<SocketLog>>
+    socket: Arc<Mutex<SocketLog>>,
     config: Arc<Mutex<Config>>,
     PendingHandleList: PendingHandleList,
 }
@@ -69,7 +67,7 @@ impl Freeze {
         Self {
             app: Arc::new(Mutex::new(App::new().unwrap())),
             mode: FreezeMode::AUTO,
-            socket: SocketLog::new(),
+            socket: Arc::new(Mutex::new(SocketLog::new().unwrap())),
             config: Arc::new(Mutex::new(Config {
                 mode: FreezeMode::AUTO,
                 whitelist: HashSet::new(),
@@ -108,22 +106,19 @@ impl Freeze {
 
         thread::spawn(move || -> Result<()> {
             let mut locked = config_arc.lock().unwrap();
-            let mut inotify = inotify::Inotify::init()?;
-
-            inotify
-                .watches()
-                .add("/data/freezer.toml", WatchMask::ACCESS)?;
+            let mut content = String::new();
 
             locked.load_config().context("无法获取配置文件")?;
             log::debug!("配置文件:{:?}", locked);
             config_sender.send((locked.mode, locked.whitelist.clone()))?;
+            content = fs::read_to_string("/data/freezer.toml")?;
 
             loop {
-                inotify
-                    .read_events_blocking(&mut [0; 1024])
-                    .context("无法read")?;
+                if content != fs::read_to_string("/data/freezer.toml")? {
                 locked.load_config().context("无法获取配置文件")?;
                 config_sender.send((locked.mode, locked.whitelist.clone()))?;
+                content = fs::read_to_string("/data/freezer.toml")?;
+                }
             }
         });
 
