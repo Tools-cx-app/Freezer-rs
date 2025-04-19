@@ -11,6 +11,8 @@ use freezer::Freezer;
 use inotify::WatchMask;
 use serde::Deserialize;
 
+use crate::socket::{xposed::Xposed, SocketLog};
+
 mod app;
 mod config;
 mod freezer;
@@ -37,6 +39,7 @@ pub enum V2 {
 pub struct Freeze {
     mode: FreezeMode,
     app: Arc<Mutex<App>>,
+    socket: Arc<Mutex<SocketLog>>
     config: Arc<Mutex<Config>>,
     PendingHandleList: PendingHandleList,
 }
@@ -66,6 +69,7 @@ impl Freeze {
         Self {
             app: Arc::new(Mutex::new(App::new().unwrap())),
             mode: FreezeMode::AUTO,
+            socket: SocketLog::new(),
             config: Arc::new(Mutex::new(Config {
                 mode: FreezeMode::AUTO,
                 whitelist: HashSet::new(),
@@ -91,12 +95,14 @@ impl Freeze {
     }
 
     pub fn enter_looper(&mut self) -> Result<()> {
+        self.socket.lock().unwrap().SocketInit();
         let (visible_app_sender, visible_app_receiver) = mpsc::channel();
         let (home_sender, home_receiver) = mpsc::channel();
         let (background_packages_sender, background_packages_receiver) = mpsc::channel();
         let (config_sender, config_receiver) = mpsc::channel();
         let app_arc = Arc::clone(&self.app);
         let config_arc = Arc::clone(&self.config);
+        let socket_arc = Arc::clone(&self.socket);
         let mut inotify = inotify::Inotify::init()?;
         let mut freezer = Freezer::new();
 
@@ -119,6 +125,20 @@ impl Freeze {
                 locked.load_config().context("无法获取配置文件")?;
                 config_sender.send((locked.mode, locked.whitelist.clone()))?;
             }
+        });
+
+        thread::spawn(move || -> Result<()> {
+            let mut locked = socket_arc.lock().unwrap();
+            let mut content = String::new();
+
+            loop {
+                content = locked.GetXposedLog()?;
+                if !content.is_empty() {
+                    locked.SendLog(content.as_str());
+                }
+            }
+
+            Ok(())
         });
 
         thread::spawn(move || -> Result<()> {
